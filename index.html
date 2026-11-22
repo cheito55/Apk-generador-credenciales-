@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Xuper — Donador y Monitor de Credenciales</title>
+  <style>
+    :root {
+      --bg: #0b111a;
+      --card: #121b28;
+      --card-inner: #0d1520;
+      --border: #223146;
+      --text: #eef4fb;
+      --muted: #8ea1b8;
+      --primary: #1d8cf8;
+      --primary-hover: #359bff;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.4;
+    }
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 17px;
+      margin: 0;
+      font-weight: 700;
+    }
+    .badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .badge-ok {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border-color: rgba(34, 197, 94, 0.4);
+    }
+    .badge-blocked {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+    .badge-info {
+      background: rgba(29, 140, 248, 0.15);
+      color: #60a5fa;
+      border-color: rgba(29, 140, 248, 0.4);
+    }
+    .native-pill {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 6px;
+      padding: 2px 7px;
+      margin-bottom: 10px;
+    }
+    .btn-main {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #1d8cf8, #1468c7);
+      border: none;
+      border-radius: 11px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(29, 140, 248, 0.35);
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-main:active { transform: scale(0.99); }
+    .btn-main:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-sm {
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #192536;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn-sm:disabled { opacity: 0.5; }
+    .btn-del {
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 7px;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.14);
+      color: #fca5a5;
+      cursor: pointer;
+    }
+    .status-box {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      font-size: 13px;
+      display: none;
+      word-break: break-word;
+    }
+    .status-box.show { display: block; }
+    .status-info { background: rgba(29, 140, 248, 0.14); border: 1px solid rgba(29, 140, 248, 0.4); color: #bae6fd; }
+    .status-ok { background: rgba(34, 197, 94, 0.14); border: 1px solid rgba(34, 197, 94, 0.4); color: #bbf7d0; }
+    .status-err { background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.4); color: #fecaca; }
+
+    .copy-box {
+      margin-top: 10px;
+      padding: 10px;
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .copy-box.show { display: flex; }
+
+    .pool-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pool-item {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .pool-left { min-width: 0; }
+    .uid-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .uid-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #1d2b3e;
+      color: #cbd5e1;
+      border: 1px solid #2e425e;
+    }
+    .tag-active {
+      background: rgba(29, 140, 248, 0.2);
+      color: #7dd3fc;
+      border-color: rgba(29, 140, 248, 0.45);
+    }
+    .sub-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .pool-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .life-text {
+      font-size: 12px;
+      font-weight: 700;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .life-ok { color: var(--ok); }
+    .life-warn { color: var(--warn); }
+    .life-err { color: var(--err); }
+    .empty-msg {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 18px 10px;
+      background: var(--card-inner);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- TARJETA 1: GENERAR Y DONAR -->
+    <div class="card">
+      <div class="header-row">
+        <h1>Donador de Credenciales</h1>
+        <span id="region-badge" class="badge badge-info">Detectando IP...</span>
+      </div>
+      <div id="transport-badge" class="native-pill">Red Nativa Android (Sin CORS)</div>
+
+      <button id="btn-donate" class="btn-main" onclick="generarYDonar()">
+        + Generar y Donar Credencial Nueva
+      </button>
+
+      <div id="status-box" class="status-box"></div>
+
+      <div id="copy-box" class="copy-box">
+        <span id="last-cred-label" style="color:#93c5fd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <button type="button" class="btn-sm" onclick="copiarUltimaCredencial()">Copiar JSON</button>
+      </div>
+    </div>
+
+    <!-- TARJETA 2: MONITOR DE CREDENCIALES VIGENTES EN EL WORKER -->
+    <div class="card">
+      <div class="header-row">
+        <h1>Vigentes en Worker (<span id="pool-count">0</span>/30)</h1>
+        <button id="btn-refresh" type="button" class="btn-sm" onclick="cargarPoolVigente()">
+          Actualizar
+        </button>
+      </div>
+
+      <div id="pool-list" class="pool-list">
+        <div class="empty-msg">Consultando credenciales activas...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // PUENTE HTTP NATIVO ANDROID (SIN CORS)
+    // ==========================================
+    const __nativeCallbacks = new Map();
+    let __nativeSeq = 0;
+
+    window.__onNativeHttpResponse = function(callbackId, rawPayload) {
+      const resolver = __nativeCallbacks.get(callbackId);
+      if (!resolver) return;
+      __nativeCallbacks.delete(callbackId);
+      try {
+        const parsed = typeof rawPayload === "string" ? JSON.parse(rawPayload) : rawPayload;
+        resolver(parsed);
+      } catch (e) {
+        resolver({ ok: false, status: 0, body: "", error: "Error parseando respuesta nativa" });
+      }
+    };
+
+    async function nativeFetch(url, options = {}) {
+      if (window.AndroidNative && typeof window.AndroidNative.request === "function") {
+        const callbackId = "cb_" + (++__nativeSeq) + "_" + Date.now();
+        const method = (options.method || "GET").toUpperCase();
+        const headersJson = JSON.stringify(options.headers || {});
+        const body = options.body !== undefined && options.body !== null ? String(options.body) : null;
+
+        const nativeRes = await new Promise((resolve) => {
+          __nativeCallbacks.set(callbackId, resolve);
+          window.AndroidNative.request(callbackId, url, method, headersJson, body);
+        });
+
+        if (nativeRes.error && nativeRes.status === 0) {
+          throw new Error(nativeRes.error);
+        }
+
+        return {
+          ok: Boolean(nativeRes.ok),
+          status: Number(nativeRes.status || 0),
+          text: async () => String(nativeRes.body || ""),
+          json: async () => JSON.parse(String(nativeRes.body || "{}"))
+        };
+      }
+
+      // Fallback si se abre fuera de la APK
+      return fetch(url, options);
+    }
+
+    if (!(window.AndroidNative && typeof window.AndroidNative.request === "function")) {
+      const tb = document.getElementById("transport-badge");
+      if (tb) tb.textContent = "Modo Navegador (Fallback fetch)";
+    }
+
+    const WORKER_BASE = "https://xuper-webapp.cheito55.workers.dev";
+
+    const PORTAL_HOSTS = [
+      "ftmrmy.jdfey0cd.com",
+      "fuxok.nguvmqhpk.com",
+      "eajmnp.hcgv1dt8.com",
+      "mptec.dhkrxuzcy.com",
+      "hinumz.a878kkoyc.com",
+      "krdwvd.swcaw7qx.com"
+    ];
+
+    const PORTAL_CONFIG = {
+      portalCode: "",
+      appId: "com.android.msandroid",
+      apkVersion: "49902",
+      apkHeaderVersion: "43404",
+      sysVersion: "2024-09-10 06:25:30_33_13_",
+      hardwareInfo: "ranchu",
+      model: "sdk_gphone64_arm64",
+      product: "sdk_gphone64_arm64",
+      cpu: "arm64-v8a",
+      reserve1: "583442714b345572434a4d5769637461545a735936413d3d",
+      sdkVer: 33
+    };
+
+    const PORTAL_SALT = "ntFT65w6itH!lHCPw7D=@qnsFC5adD28";
+    let ultimaCredencialGenerada = null;
+
+    // ==========================================
+    // CRIPTOGRAFÍA PORTAL (3DES-ECB + MD5)
+    // ==========================================
+    const HEX_CHARS = "0123456789abcdef";
+    const HEX_LUT = new Uint8Array(128);
+    for (let r = 0; r < 10; r++) HEX_LUT[48 + r] = r;
+    for (let e = 0; e < 6; e++) {
+      HEX_LUT[97 + e] = 10 + e;
+      HEX_LUT[65 + e] = 10 + e;
+    }
+
+    function hexToBytes(hex) {
+      const len = hex.length >>> 1;
+      const out = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        out[i] = (HEX_LUT[127 & hex.charCodeAt(2 * i)] << 4) | HEX_LUT[127 & hex.charCodeAt(2 * i + 1)];
+      }
+      return out;
+    }
+
+    function bytesToHex(bytes) {
+      let s = "";
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i];
+        s += HEX_CHARS[b >> 4] + HEX_CHARS[15 & b];
+      }
+      return s;
+    }
+
+    function b64encode(bytes) {
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 8192) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + 8192, bytes.length)));
+      }
+      return btoa(bin);
+    }
+
+    function b64decode(str) {
+      const bin = atob(str);
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 255;
+      return out;
+    }
+
+    function randomHex(byteLength) {
+      const bytes = new Uint8Array(byteLength);
+      crypto.getRandomValues(bytes);
+      return bytesToHex(bytes);
+    }
+
+    function randomBase64(byteLength) {
+      const bytes = new Uint8Array(byteLength);
+      crypto.getRandomValues(bytes);
+      return b64encode(bytes);
+    }
+
+    const PC1 = [57,49,41,33,25,17,9,1,58,50,42,34,26,18,10,2,59,51,43,35,27,19,11,3,60,52,44,36,63,55,47,39,31,23,15,7,62,54,46,38,30,22,14,6,61,53,45,37,29,21,13,5,28,20,12,4];
+    const PC2 = [14,17,11,24,1,5,3,28,15,6,21,10,23,19,12,4,26,8,16,7,27,20,13,2,41,52,31,37,47,55,30,40,51,45,33,48,44,49,39,56,34,53,46,42,50,36,29,32];
+    const SHIFTS = [1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1];
+    const IP_TAB = [58,50,42,34,26,18,10,2,60,52,44,36,28,20,12,4,62,54,46,38,30,22,14,6,64,56,48,40,32,24,16,8,57,49,41,33,25,17,9,1,59,51,43,35,27,19,11,3,61,53,45,37,29,21,13,5,63,55,47,39,31,23,15,7];
+    const FP_TAB = [40,8,48,16,56,24,64,32,39,7,47,15,55,23,63,31,38,6,46,14,54,22,62,30,37,5,45,13,53,21,61,29,36,4,44,12,52,20,60,28,35,3,43,11,51,19,59,27,34,2,42,10,50,18,58,26,33,1,41,9,49,17,57,25];
+    const P_TAB = [16,7,20,21,29,12,28,17,1,15,23,26,5,18,31,10,2,8,24,14,32,27,3,9,19,13,30,6,22,11,4,25];
+    const SBOX = [
+      [14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7,0,15,7,4,14,2,13,1,10,6,12,11,9,5,3,8,4,1,14,8,13,6,2,11,15,12,9,7,3,10,5,0,15,12,8,2,4,9,1,7,5,11,3,14,10,0,6,13],
+      [15,1,8,14,6,11,3,4,9,7,2,13,12,0,5,10,3,13,4,7,15,2,8,14,12,0,1,10,6,9,11,5,0,14,7,11,10,4,13,1,5,8,12,6,9,3,2,15,13,8,10,1,3,15,4,2,11,6,7,12,0,5,14,9],
+      [10,0,9,14,6,3,15,5,1,13,12,7,11,4,2,8,13,7,0,9,3,4,6,10,2,8,5,14,12,11,15,1,13,6,4,9,8,15,3,0,11,1,2,12,5,10,14,7,1,10,13,0,6,9,8,7,4,15,14,3,11,5,2,12],
+      [7,13,14,3,0,6,9,10,1,2,8,5,11,12,4,15,13,8,11,5,6,15,0,3,4,7,2,12,1,10,14,9,10,6,9,0,12,11,7,13,15,1,3,14,5,2,8,4,3,15,0,6,10,1,13,8,9,4,5,11,12,7,2,14],
+      [2,12,4,1,7,10,11,6,8,5,3,15,13,0,14,9,14,11,2,12,4,7,13,1,5,0,15,10,3,9,8,6,4,2,1,11,10,13,7,8,15,9,12,5,6,3,0,14,11,8,12,7,1,14,2,13,6,15,0,9,10,4,5,3],
+      [12,1,10,15,9,2,6,8,0,13,3,4,14,7,5,11,10,15,4,2,7,12,9,5,6,1,13,14,0,11,3,8,9,14,15,5,2,8,12,3,7,0,4,10,1,13,11,6,4,3,2,12,9,5,15,10,11,14,1,7,6,0,8,13],
+      [4,11,2,14,15,0,8,13,3,12,9,7,5,10,6,1,13,0,11,7,4,9,1,10,14,3,5,12,2,15,8,6,1,4,11,13,12,3,7,14,10,15,6,8,0,5,9,2,6,11,13,8,1,4,10,7,9,5,0,15,14,2,3,12],
+      [13,2,8,4,6,15,11,1,10,9,3,14,5,0,12,7,1,15,13,8,10,3,7,4,12,5,6,11,0,14,9,2,7,11,4,1,9,12,14,2,0,6,10,13,15,3,5,8,2,1,14,7,4,10,8,13,15,12,9,0,3,5,6,11]
+    ];
+
+    function permute(r, e) {
+      const n = new Array(e.length);
+      for (let t = 0; t < e.length; t++) n[t] = r[e[t] - 1];
+      return n;
+    }
+
+    function bytesToBits(r) {
+      const e = [];
+      for (let n = 0; n < r.length; n++) {
+        for (let t = 7; t >= 0; t--) e.push((r[n] >> t) & 1);
+      }
+      return e;
+    }
+
+    function keySchedule(r) {
+      const e = permute(bytesToBits(r), PC1);
+      const n = e.slice(0, 28);
+      const t = e.slice(28, 56);
+      const o = [];
+      for (let f = 0; f < 16; f++) {
+        for (let u = 0; u < SHIFTS[f]; u++) {
+          n.push(n.shift());
+          t.push(t.shift());
+        }
+        o.push(permute(n.concat(t), PC2));
+      }
+      return o;
+    }
+
+    const SP = [], IP_L = [], IP_R = [], FP_HI = [], FP_LO = [];
+    (function initTables() {
+      for (let r = 0; r < 8; r++) {
+        const e = new Int32Array(64);
+        for (let n = 0; n < 64; n++) {
+          const t = ((n >>> 5) << 1) | (1 & n);
+          const o = (n >>> 1) & 15;
+          const f = SBOX[r][16 * t + o];
+          let u = 0;
+          for (let a = 0; a < 32; a++) {
+            const i = P_TAB[a] - 1;
+            if ((i >>> 2) === r && ((f >>> (3 - (3 & i))) & 1)) u |= 1 << (31 - a);
+          }
+          e[n] = u;
+        }
+        SP.push(e);
+      }
+      for (let c = 0; c < 8; c++) {
+        const l = new Int32Array(256), v = new Int32Array(256);
+        for (let y = 0; y < 256; y++) {
+          let p = 0, b = 0;
+          for (let w = 0; w < 32; w++) {
+            const A = IP_TAB[w] - 1;
+            if ((A >>> 3) === c && ((y >>> (7 - (7 & A))) & 1)) p |= 1 << (31 - w);
+            const m = IP_TAB[32 + w] - 1;
+            if ((m >>> 3) === c && ((y >>> (7 - (7 & m))) & 1)) b |= 1 << (31 - w);
+          }
+          l[y] = p;
+          v[y] = b;
+        }
+        IP_L.push(l);
+        IP_R.push(v);
+      }
+      for (let U = 0; U < 8; U++) {
+        const C = new Int32Array(256), x = new Int32Array(256);
+        for (let S = 0; S < 256; S++) {
+          let T = 0, B = 0;
+          for (let E = 0; E < 32; E++) {
+            const D = FP_TAB[E] - 1;
+            if ((D >>> 3) === U && ((S >>> (7 - (7 & D))) & 1)) T |= 1 << (31 - E);
+            const _ = FP_TAB[32 + E] - 1;
+            if ((_ >>> 3) === U && ((S >>> (7 - (7 & _))) & 1)) B |= 1 << (31 - E);
+          }
+          C[S] = T;
+          x[S] = B;
+        }
+        FP_HI.push(C);
+        FP_LO.push(x);
+      }
+    })();
+
+    function packKS(r, reverse) {
+      const n = new Int32Array(128);
+      for (let t = 0; t < 16; t++) {
+        const o = r[reverse ? 15 - t : t];
+        for (let f = 0; f < 8; f++) {
+          let u = 0;
+          for (let a = 0; a < 6; a++) u = (u << 1) | o[6 * f + a];
+          n[8 * t + f] = u;
+        }
+      }
+      return n;
+    }
+
+    function runFast3DES(r, e, decrypt) {
+      const t = packKS(keySchedule(e.slice(0, 8)), decrypt);
+      const o = packKS(keySchedule(e.slice(8, 16)), !decrypt);
+      const f = packKS(keySchedule(e.slice(16, 24)), decrypt);
+      const u = decrypt ? f : t;
+      const a = o;
+      const i = decrypt ? t : f;
+      const c = new Uint8Array(r.length);
+
+      for (let l = 0, h = r.length & -8; l < h; l += 8) {
+        const s = r[l], v = r[l + 1], d = r[l + 2], g = r[l + 3], y = r[l + 4], p = r[l + 5], w = r[l + 6], A = r[l + 7];
+        let m = IP_L[0][s] | IP_L[1][v] | IP_L[2][d] | IP_L[3][g] | IP_L[4][y] | IP_L[5][p] | IP_L[6][w] | IP_L[7][A];
+        let U = IP_R[0][s] | IP_R[1][v] | IP_R[2][d] | IP_R[3][g] | IP_R[4][y] | IP_R[5][p] | IP_R[6][w] | IP_R[7][A];
+
+        for (let C = 0; C < 128; C += 8) {
+          const x = SP[0][(((1 & U) << 5) | (U >>> 27)) ^ u[C]] ^
+                    SP[1][((U >>> 23) & 63) ^ u[C + 1]] ^
+                    SP[2][((U >>> 19) & 63) ^ u[C + 2]] ^
+                    SP[3][((U >>> 15) & 63) ^ u[C + 3]] ^
+                    SP[4][((U >>> 11) & 63) ^ u[C + 4]] ^
+                    SP[5][((U >>> 7) & 63) ^ u[C + 5]] ^
+                    SP[6][((U >>> 3) & 63) ^ u[C + 6]] ^
+                    SP[7][(((31 & U) << 1) | (U >>> 31)) ^ u[C + 7]];
+          const S = m ^ x;
+          m = U;
+          U = S;
+        }
+        let T = m; m = U; U = T;
+
+        for (let B = 0; B < 128; B += 8) {
+          const E = SP[0][(((1 & U) << 5) | (U >>> 27)) ^ a[B]] ^
+                    SP[1][((U >>> 23) & 63) ^ a[B + 1]] ^
+                    SP[2][((U >>> 19) & 63) ^ a[B + 2]] ^
+                    SP[3][((U >>> 15) & 63) ^ a[B + 3]] ^
+                    SP[4][((U >>> 11) & 63) ^ a[B + 4]] ^
+                    SP[5][((U >>> 7) & 63) ^ a[B + 5]] ^
+                    SP[6][((U >>> 3) & 63) ^ a[B + 6]] ^
+                    SP[7][(((31 & U) << 1) | (U >>> 31)) ^ a[B + 7]];
+          const D = m ^ E;
+          m = U;
+          U = D;
+        }
+        T = m; m = U; U = T;
+
+        for (let _ = 0; _ < 128; _ += 8) {
+          const I = SP[0][(((1 & U) << 5) | (U >>> 27)) ^ i[_]] ^
+                    SP[1][((U >>> 23) & 63) ^ i[_ + 1]] ^
+                    SP[2][((U >>> 19) & 63) ^ i[_ + 2]] ^
+                    SP[3][((U >>> 15) & 63) ^ i[_ + 3]] ^
+                    SP[4][((U >>> 11) & 63) ^ i[_ + 4]] ^
+                    SP[5][((U >>> 7) & 63) ^ i[_ + 5]] ^
+                    SP[6][((U >>> 3) & 63) ^ i[_ + 6]] ^
+                    SP[7][(((31 & U) << 1) | (U >>> 31)) ^ i[_ + 7]];
+          const O = m ^ I;
+          m = U;
+          U = O;
+        }
+
+        const k = U >>> 24, q = (U >>> 16) & 255, P = (U >>> 8) & 255, H = 255 & U;
+        const K = m >>> 24, M = (m >>> 16) & 255, N = (m >>> 8) & 255, R = 255 & m;
+        const L = FP_HI[0][k] | FP_HI[1][q] | FP_HI[2][P] | FP_HI[3][H] | FP_HI[4][K] | FP_HI[5][M] | FP_HI[6][N] | FP_HI[7][R];
+        const V = FP_LO[0][k] | FP_LO[1][q] | FP_LO[2][P] | FP_LO[3][H] | FP_LO[4][K] | FP_LO[5][M] | FP_LO[6][N] | FP_LO[7][R];
+
+        c[l] = L >>> 24;
+        c[l + 1] = (L >>> 16) & 255;
+        c[l + 2] = (L >>> 8) & 255;
+        c[l + 3] = 255 & L;
+        c[l + 4] = V >>> 24;
+        c[l + 5] = (V >>> 16) & 255;
+        c[l + 6] = (V >>> 8) & 255;
+        c[l + 7] = 255 & V;
+      }
+      return c;
+    }
+
+    const DEFAULT_3DES_KEY = hexToBytes("e7af1ed7de1ffddd7bd3fe37ebdffde9ef3fe1ae39edfeb8");
+
+    function wrap(str) {
+      const plainBytes = new TextEncoder().encode(str);
+      const padLen = 8 - (plainBytes.length % 8);
+      const padded = new Uint8Array(plainBytes.length + padLen);
+      padded.set(plainBytes);
+      for (let i = plainBytes.length; i < padded.length; i++) padded[i] = padLen;
+      const encrypted = runFast3DES(padded, DEFAULT_3DES_KEY, false);
+      return bytesToHex(new TextEncoder().encode(b64encode(encrypted)));
+    }
+
+    function unwrap(hexStr) {
+      const b64 = new TextDecoder("utf-8").decode(hexToBytes(hexStr));
+      const decrypted = runFast3DES(b64decode(b64), DEFAULT_3DES_KEY, true);
+      if (!decrypted.length) return "";
+      const pad = decrypted[decrypted.length - 1];
+      const actualLen = pad >= 1 && pad <= 8 ? decrypted.length - pad : decrypted.length;
+      return new TextDecoder("utf-8").decode(decrypted.subarray(0, actualLen));
+    }
+
+    function md5(string) {
+      function cmn(q, a, b, x, s, t) {
+        a = (a + q + x + t) & 0xFFFFFFFF;
+        return (((a << s) | (a >>> (32 - s))) + b) & 0xFFFFFFFF;
+      }
+      function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
+      function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
+      function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
+      function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
+
+      const n = string.length;
+      const state = [1732584193, -271733879, -1732584194, 271733878];
+      let i;
+      for (i = 64; i <= n; i += 64) {
+        cycle(state, blk(string.substring(i - 64, i)));
+      }
+      const rem = string.substring(i - 64);
+      const tail = new Array(16).fill(0);
+      for (i = 0; i < rem.length; i++) tail[i >> 2] |= rem.charCodeAt(i) << ((i % 4) << 3);
+      tail[i >> 2] |= 0x80 << ((i % 4) << 3);
+      if (i > 55) {
+        cycle(state, tail);
+        for (i = 0; i < 16; i++) tail[i] = 0;
+      }
+      tail[14] = n * 8;
+      cycle(state, tail);
+
+      function cycle(x, k) {
+        let a = x[0], b = x[1], c = x[2], d = x[3];
+        a = ff(a, b, c, d, k[0], 7, -680876936); d = ff(d, a, b, c, k[1], 12, -389564586); c = ff(c, d, a, b, k[2], 17, 606105819); b = ff(b, c, d, a, k[3], 22, -1044525330);
+        a = ff(a, b, c, d, k[4], 7, -176418897); d = ff(d, a, b, c, k[5], 12, 1200080426); c = ff(c, d, a, b, k[6], 17, -1473231341); b = ff(b, c, d, a, k[7], 22, -45705983);
+        a = ff(a, b, c, d, k[8], 7, 1770035416); d = ff(d, a, b, c, k[9], 12, -1958414417); c = ff(c, d, a, b, k[10], 17, -42063); b = ff(b, c, d, a, k[11], 22, -1990404162);
+        a = ff(a, b, c, d, k[12], 7, 1804603682); d = ff(d, a, b, c, k[13], 12, -40341101); c = ff(c, d, a, b, k[14], 17, -1502002290); b = ff(b, c, d, a, k[15], 22, 1236535329);
+
+        a = gg(a, b, c, d, k[1], 5, -165796510); d = gg(d, a, b, c, k[6], 9, -1069501632); c = gg(c, d, a, b, k[11], 14, 643717713); b = gg(b, c, d, a, k[0], 20, -373897302);
+        a = gg(a, b, c, d, k[5], 5, -701558691); d = gg(d, a, b, c, k[10], 9, 38016083); c = gg(c, d, a, b, k[15], 14, -660478335); b = gg(b, c, d, a, k[4], 20, -405537848);
+        a = gg(a, b, c, d, k[9], 5, 568446438); d = gg(d, a, b, c, k[14], 9, -1019803690); c = gg(c, d, a, b, k[3], 14, -187363961); b = gg(b, c, d, a, k[8], 20, 1163531501);
+        a = gg(a, b, c, d, k[13], 5, -1444681467); d = gg(d, a, b, c, k[2], 9, -51403784); c = gg(c, d, a, b, k[7], 14, 1735328473); b = gg(b, c, d, a, k[12], 20, -1926607734);
+
+        a = hh(a, b, c, d, k[5], 4, -378558); d = hh(d, a, b, c, k[8], 11, -2022574463); c = hh(c, d, a, b, k[11], 16, 1839030562); b = hh(b, c, d, a, k[14], 23, -35309556);
+        a = hh(a, b, c, d, k[1], 4, -1530992060); d = hh(d, a, b, c, k[4], 11, 1272893353); c = hh(c, d, a, b, k[7], 16, -155497632); b = hh(b, c, d, a, k[10], 23, -1094730640);
+        a = hh(a, b, c, d, k[13], 4, 681279174); d = hh(d, a, b, c, k[0], 11, -358537222); c = hh(c, d, a, b, k[3], 16, -722521979); b = hh(b, c, d, a, k[6], 23, 76029189);
+        a = hh(a, b, c, d, k[9], 4, -640364487); d = hh(d, a, b, c, k[12], 11, -421815835); c = hh(c, d, a, b, k[15], 16, 530742520); b = hh(b, c, d, a, k[2], 23, -995338651);
+
+        a = ii(a, b, c, d, k[0], 6, -198630844); d = ii(d, a, b, c, k[7], 10, 1126891415); c = ii(c, d, a, b, k[14], 15, -1416354905); b = ii(b, c, d, a, k[5], 21, -57434055);
+        a = ii(a, b, c, d, k[12], 6, 1700485571); d = ii(d, a, b, c, k[3], 10, -1894986606); c = ii(c, d, a, b, k[10], 15, -1051523); b = ii(b, c, d, a, k[1], 21, -2054922799);
+        a = ii(a, b, c, d, k[8], 6, 1873313359); d = ii(d, a, b, c, k[15], 10, -30611744); c = ii(c, d, a, b, k[6], 15, -1560198380); b = ii(b, c, d, a, k[13], 21, 1309151649);
+        a = ii(a, b, c, d, k[4], 6, -145523070); d = ii(d, a, b, c, k[11], 10, -1120210379); c = ii(c, d, a, b, k[2], 15, 718787259); b = ii(b, c, d, a, k[9], 21, -343485551);
+
+        x[0] = (x[0] + a) & 0xFFFFFFFF;
+        x[1] = (x[1] + b) & 0xFFFFFFFF;
+        x[2] = (x[2] + c) & 0xFFFFFFFF;
+        x[3] = (x[3] + d) & 0xFFFFFFFF;
+      }
+
+      function blk(s) {
+        const b = new Array(16).fill(0);
+        for (let i = 0; i < 64; i += 4) {
+          b[i >> 2] = s.charCodeAt(i) + (s.charCodeAt(i + 1) << 8) + (s.charCodeAt(i + 2) << 16) + (s.charCodeAt(i + 3) << 24);
+        }
+        return b;
+      }
+
+      let out = "";
+      for (let j = 0; j < 4; j++) {
+        for (let k = 0; k < 4; k++) {
+          out += HEX_CHARS[(state[j] >> (k * 8 + 4)) & 0x0F] + HEX_CHARS[(state[j] >> (k * 8)) & 0x0F];
+        }
+      }
+      return out;
+    }
+
+    function extractPortalData(json) {
+      let data = (json && (json.res || json.data)) || null;
+      if (typeof data === "string" && data.length > 16 && /^[0-9a-fA-F]+$/i.test(data)) {
+        try { data = JSON.parse(unwrap(data)); } catch { data = unwrap(data); }
+      }
+      return data;
+    }
+
+    // ==========================================
+    // INTERFAZ Y LÓGICA DE DONACIÓN + MONITOR
+    // ==========================================
+    function mostrarMensaje(tipo, texto) {
+      const box = document.getElementById("status-box");
+      box.className = `status-box show status-${tipo}`;
+      box.textContent = texto;
+    }
+
+    function formatearVidaRestante(minutos) {
+      if (minutos <= 0) return "Vencida";
+      const h = Math.floor(minutos / 60);
+      const m = minutos % 60;
+      return h > 0 ? `${h}h ${m}m restantes` : `${m}m restantes`;
+    }
+
+    function renderizarListaPool(lista) {
+      const countEl = document.getElementById("pool-count");
+      const listEl = document.getElementById("pool-list");
+      countEl.textContent = lista.length;
+
+      if (!lista.length) {
+        listEl.innerHTML = `<div class="empty-msg">No hay credenciales vigentes en el Worker.<br>Enciende la VPN y presiona el botón de arriba.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = lista.map((item, idx) => {
+        const claseVida = item.expiresInMinutes < 60
+          ? "life-err"
+          : (item.expiresInMinutes < 150 ? "life-warn" : "life-ok");
+
+        return `
+          <div class="pool-item">
+            <div class="pool-left">
+              <div class="uid-row">
+                <span class="uid-code">${item.userId}</span>
+                <span class="tag">${item.donorCountry || "XX"}</span>
+                ${idx === 0 ? '<span class="tag tag-active">Activa</span>' : ''}
+              </div>
+              <div class="sub-meta">Cargada hace ${item.ageMinutes} min</div>
+            </div>
+            <div class="pool-right">
+              <div class="life-text ${claseVida}">${formatearVidaRestante(item.expiresInMinutes)}</div>
+              <button type="button" class="btn-del" onclick="borrarCredencial('${item.userId}', this)">Borrar</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function cargarPoolVigente() {
+      const btn = document.getElementById("btn-refresh");
+      const badge = document.getElementById("region-badge");
+      btn.disabled = true;
+      btn.textContent = "...";
+
+      try {
+        const res = await nativeFetch(`${WORKER_BASE}/session/current`, { cache: "no-store" });
+        const data = await res.json();
+        const country = data?.region?.country || "XX";
+        const blocked = Boolean(data?.region?.isBlockedRegion);
+
+        badge.className = `badge ${blocked ? "badge-blocked" : "badge-ok"}`;
+        badge.textContent = blocked ? `${country} · Bloqueado (Usa VPN)` : `${country} · VPN Activa`;
+
+        const lista = Array.isArray(data?.activeSessions) ? data.activeSessions : [];
+        renderizarListaPool(lista);
+      } catch (err) {
+        badge.className = "badge badge-blocked";
+        badge.textContent = "Sin conexión";
+        mostrarMensaje("err", "No se pudo consultar el Worker: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Actualizar";
+      }
+    }
+
+    async function borrarCredencial(userId, btnEl) {
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.textContent = "...";
+      }
+      try {
+        await nativeFetch(`${WORKER_BASE}/session/fallback?exclude=${encodeURIComponent(userId)}&invalidate=1`, {
+          cache: "no-store"
+        });
+        mostrarMensaje("info", `Credencial ${userId} eliminada del pool.`);
+        await cargarPoolVigente();
+      } catch (err) {
+        mostrarMensaje("err", "Error al borrar: " + err.message);
+      }
+    }
+
+    async function generarYDonar() {
+      const btn = document.getElementById("btn-donate");
+      btn.disabled = true;
+      btn.textContent = "Generando credencial...";
+      mostrarMensaje("info", "1/3 Creando identidad virtual nueva...");
+
+      try {
+        const drmId = randomBase64(32);
+        const androidId = randomHex(8);
+
+        const baseFields = {
+          loginType: "2",
+          appLanguage: "en",
+          apkVersion: PORTAL_CONFIG.apkVersion,
+          sysVersion: PORTAL_CONFIG.sysVersion,
+          appId: PORTAL_CONFIG.appId,
+          hardwareInfo: PORTAL_CONFIG.hardwareInfo,
+          model: PORTAL_CONFIG.model,
+          product: PORTAL_CONFIG.product,
+          cpu: PORTAL_CONFIG.cpu,
+          B29: "",
+          reserve1: PORTAL_CONFIG.reserve1,
+          deviceToken: "",
+          drmId,
+          sdkVer: PORTAL_CONFIG.sdkVer,
+          sn: ""
+        };
+
+        const headers = {
+          "Content-Type": "application/json; charset=utf-8",
+          "apk": PORTAL_CONFIG.appId,
+          "apkVer": PORTAL_CONFIG.apkHeaderVersion,
+          "spkgVer": PORTAL_CONFIG.sysVersion
+        };
+
+        let credencial = null;
+        let ultimoError = "No se pudo conectar con los servidores del portal.";
+
+        for (const host of PORTAL_HOSTS) {
+          try {
+            mostrarMensaje("info", `2/3 Activando en ${host} (vía red nativa)...`);
+
+            const snBody = JSON.stringify({
+              userId: "",
+              userToken: "",
+              portalCode: PORTAL_CONFIG.portalCode,
+              ...baseFields,
+              androidId,
+              wifiMac: "02:00:00:00:00:00",
+              etheMac: "02:00:00:00:00:00",
+              serialNumber: "unknown",
+              diskInfo: "",
+              ramSize: "",
+              romSize: "",
+              gatewayMac: "02:00:00:00:00:00",
+              cpuAbi: PORTAL_CONFIG.cpu,
+              display: PORTAL_CONFIG.product,
+              brand: "SmartTV",
+              verId: "",
+              cpuId: "",
+              hardware: PORTAL_CONFIG.hardwareInfo,
+              manufacturer: "",
+              fingerprint: "",
+              host: "",
+              device: PORTAL_CONFIG.product,
+              board: "",
+              tags: ""
+            });
+
+            const snRes = await nativeFetch(`https://${host}/api/portalCore/v3/snToken`, {
+              method: "POST",
+              headers,
+              body: wrap(snBody)
+            });
+            const snJson = await snRes.json();
+            const rawSn = JSON.stringify(snJson);
+            if (/portal100024|黑名单/i.test(rawSn)) {
+              throw new Error("Bloqueo regional (portal100024). Enciende una VPN fuera de Argentina e intenta de nuevo.");
+            }
+
+            const snData = extractPortalData(snJson) || {};
+            const snToken = String(snData.snToken || snJson?.res?.snToken || snJson?.data?.snToken || "");
+            if (!snToken) throw new Error("El portal no devolvió snToken.");
+
+            const isNew = String(snData.isNew || "") === "1";
+            const sn = isNew && snData.sn ? String(snData.sn) : md5(snToken + PORTAL_SALT);
+
+            const activeBody = JSON.stringify({
+              authCode: "",
+              authVersion: "",
+              channel: "default",
+              macAddr: "02:00:00:00:00:00",
+              matadata: "",
+              openNum: 0,
+              signdata: "",
+              snToken,
+              portalCode: PORTAL_CONFIG.portalCode,
+              ...baseFields,
+              sn
+            });
+
+            const actRes = await nativeFetch(`https://${host}/api/portalCore/v8/active`, {
+              method: "POST",
+              headers,
+              body: wrap(activeBody)
+            });
+            const actJson = await actRes.json();
+            const rawAct = JSON.stringify(actJson);
+            if (/portal100024|黑名单/i.test(rawAct)) {
+              throw new Error("Bloqueo regional en activación (portal100024). Verifica que tu VPN esté conectada.");
+            }
+
+            const actData = extractPortalData(actJson) || actJson?.res || actJson?.data || {};
+            if (!actData.userId || !actData.userToken) {
+              throw new Error("Activación incompleta sin userId/userToken.");
+            }
+
+            credencial = {
+              userId: String(actData.userId),
+              userToken: String(actData.userToken),
+              sn,
+              snToken
+            };
+            break;
+          } catch (err) {
+            ultimoError = err.message || String(err);
+            if (/portal100024/i.test(ultimoError)) throw err;
+          }
+        }
+
+        if (!credencial) {
+          throw new Error(ultimoError);
+        }
+
+        mostrarMensaje("info", `3/3 Subiendo credencial ${credencial.userId} al Worker...`);
+
+        const donateRes = await nativeFetch(`${WORKER_BASE}/session/donate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credencial)
+        });
+        const donateJson = await donateRes.json();
+
+        if (!donateRes.ok || !donateJson?.ok) {
+          throw new Error(donateJson?.error || `Worker respondió HTTP ${donateRes.status}`);
+        }
+
+        ultimaCredencialGenerada = credencial;
+        document.getElementById("last-cred-label").textContent = `ID: ${credencial.userId}`;
+        document.getElementById("copy-box").classList.add("show");
+
+        if (Array.isArray(donateJson.activeSessions)) {
+          renderizarListaPool(donateJson.activeSessions);
+        } else {
+          await cargarPoolVigente();
+        }
+
+        mostrarMensaje(
+          "ok",
+          `Listo: credencial ${credencial.userId} cargada al pool (vigencia: ${donateJson.maxAgeHours || 6} horas).`
+        );
+      } catch (err) {
+        mostrarMensaje("err", err.message || "Error al generar o donar credencial.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "+ Generar y Donar Credencial Nueva";
+      }
+    }
+
+    function copiarUltimaCredencial() {
+      if (!ultimaCredencialGenerada) return;
+      const text = JSON.stringify(ultimaCredencialGenerada, null, 2);
+      if (window.AndroidNative && typeof window.AndroidNative.copyText === "function") {
+        const ok = window.AndroidNative.copyText("XuperCredencial", text);
+        if (ok) {
+          mostrarMensaje("info", "Credencial copiada al portapapeles nativo.");
+          return;
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => mostrarMensaje("info", "Credencial copiada al portapapeles."))
+          .catch(() => {});
+      }
+    }
+
+    // Carga inicial y actualización automática cada 30 segundos
+    cargarPoolVigente();
+    setInterval(cargarPoolVigente, 30000);
+  </script>
+</body>
+</html>
